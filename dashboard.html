@@ -147,13 +147,19 @@
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             
+            // DEBUG: Print the raw data to the browser console (F12)
+            console.log("Received:", data); 
+
             // Update Stats
             txCount++;
             txCountEl.innerText = txCount;
             
-            if(data.status === "SUCCESS") {
+            // FORCE UPDATE: Check for "VERIFIED" explicitly
+            if(data.status === "VERIFIED") {
                 totalVolume += data.reward;
                 volCountEl.innerText = "$" + totalVolume.toLocaleString();
+            } else {
+                console.warn("Status mismatch:", data.status);
             }
 
             addLog(data);

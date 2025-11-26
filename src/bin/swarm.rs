@@ -1,21 +1,19 @@
 // src/bin/swarm.rs
-// --- SPECTRE SWARM SERVER ---
-// Broadcasts agent activity to the Frontend Dashboard
+// --- SPECTRE SWARM SERVER V3: CHAOS EDITION (STABLE) ---
 
 use tokio::time::{sleep, Duration};
 use rand::Rng;
 use colored::*;
 use warp::Filter;
-use serde::{Serialize, Deserialize};
-use std::sync::{Arc, Mutex};
+use serde::{Serialize}; 
 use tokio::sync::broadcast;
 
-// Define the Data Structure we send to the Frontend
 #[derive(Serialize, Clone, Debug)]
 struct AgentEvent {
     agent_id: u32,
-    status: String, // "SUCCESS" or "FAILED"
-    task: String,
+    status: String, 
+    task: String,     
+    tx_hash: String,  
     reward: u64,
     latency: u64,
     timestamp: u64,
@@ -23,21 +21,17 @@ struct AgentEvent {
 
 #[tokio::main]
 async fn main() {
-    println!("{}", "--- SPECTRE NETWORK: INITIALIZING WEBSOCKETS ---".bold().cyan());
+    println!("{}", "--- SPECTRE V3: CRYPTO-HASH ENGINE ACTIVE ---".bold().purple());
 
-    // 1. Create a "Broadcast Channel" (Like a radio station)
     let (tx, _rx) = broadcast::channel::<AgentEvent>(100);
     let tx_clone = tx.clone();
 
-    // 2. Start the Swarm Simulation (In the background)
+    // Spawn the Engine
     tokio::spawn(async move {
         run_swarm_engine(tx_clone).await;
     });
 
-    // 3. Start the Web Server (Listening on port 3030)
-    let users = Arc::new(Mutex::new(0)); // Track connected users (optional)
-    
-    // The WebSocket Route: ws://localhost:3030/spectre
+    // Start Server
     let ws_route = warp::path("spectre")
         .and(warp::ws())
         .map(move |ws: warp::ws::Ws| {
@@ -46,65 +40,81 @@ async fn main() {
         });
 
     println!("{}", "[SYSTEM] WebSocket Server Active on ws://127.0.0.1:3030/spectre".green());
-    println!("{}", "[SYSTEM] Waiting for Frontend Connection...".yellow());
-
     warp::serve(ws_route).run(([127, 0, 0, 1], 3030)).await;
 }
 
-// Handle a new Frontend connecting
 async fn handle_connection(ws: warp::ws::WebSocket, tx: broadcast::Sender<AgentEvent>) {
     use futures::{SinkExt, StreamExt};
     let (mut user_ws_tx, _user_ws_rx) = ws.split();
     let mut rx = tx.subscribe();
 
-    // Loop: When a new agent event happens, send it to the frontend
     while let Ok(event) = rx.recv().await {
         let json = serde_json::to_string(&event).unwrap();
         if let Err(_e) = user_ws_tx.send(warp::ws::Message::text(json)).await {
-            break; // Client disconnected
+            break; 
         }
     }
 }
 
-// The Simulation Engine (Same as before, but broadcasting events)
+// --- THE CHAOS ENGINE (FIXED) ---
 async fn run_swarm_engine(tx: broadcast::Sender<AgentEvent>) {
-    let agent_count = 100;
+    let agent_count = 1000;
+    
+    let models = vec!["LLaMA-3-70B", "GPT-4-Turbo", "Claude-3-Opus", "Mistral-Large"];
+    let pairs = vec!["SOL/USDC", "SUI/USDT", "ETH/BTC", "PSY/USDC"];
+    let sites = vec!["Twitter", "Reddit", "Bloomberg", "Discord"];
     
     loop {
-        // Pick a random agent to do work
-        let id = rand::thread_rng().gen_range(0..agent_count);
-        
-        let (is_failure, job_index, work_time) = {
+        // STEP 1: GENERATE DATA (Sync Block)
+        // We do all math here so 'rng' is dropped before we ever await.
+        let (event, delay_ms, log_msg, is_error) = {
             let mut rng = rand::thread_rng();
-            (rng.gen_range(0..100) < 5, rng.gen_range(0..4), rng.gen_range(50..300))
-        };
 
-        let status = if is_failure { "FAILED" } else { "SUCCESS" };
-        let job_types = vec!["LLaMA-3 Inference", "StableDiff Gen", "Data Scraping", "Arb Trade"];
-        let task = job_types[job_index].to_string();
-        let reward = rand::thread_rng().gen_range(10..500);
+            // Fake Hash
+            let tx_hash: String = (0..8).map(|_| format!("{:x}", rng.gen::<u8>())).collect::<String>();
+            let short_hash = format!("0x{}...", &tx_hash[0..6]);
 
-        // Create the event object
-        let event = AgentEvent {
-            agent_id: id,
-            status: status.to_string(),
-            task: task.clone(),
-            reward,
-            latency: work_time,
-            timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
-        };
+            // Task Details
+            let job_type = rng.gen_range(0..4);
+            let task_detail = match job_type {
+                0 => format!("Inference [{}]", models[rng.gen_range(0..models.len())]),
+                1 => format!("Gen-Z Proof [{}]", short_hash), 
+                2 => format!("Scrape [{}]", sites[rng.gen_range(0..sites.len())]),
+                _ => format!("Arb Swap [{}]", pairs[rng.gen_range(0..pairs.len())]),
+            };
 
-        // 1. Broadcast to WebSocket (Frontend)
+            // Status
+            let is_failure = rng.gen_range(0..100) < 3; 
+            let status = if is_failure { "FAILED".to_string() } else { "VERIFIED".to_string() };
+            let reward = rng.gen_range(5..1200);
+            let fee = rng.gen_range(1..5);
+            let delay = rng.gen_range(20..150); // Calculate delay HERE
+
+            let event = AgentEvent {
+                agent_id: rng.gen_range(0..agent_count),
+                status: status.clone(),
+                task: task_detail.clone(),
+                tx_hash: short_hash,
+                reward,
+                latency: rng.gen_range(12..450),
+                timestamp: 0,
+            };
+
+            // Prepare log string to avoid printing inside the block
+            let log = if is_failure {
+                format!("{} {} | {}", "✖".red(), status.red(), task_detail)
+            } else {
+                format!("{} {} | {} | Fee: ${}", "✔".green(), "CONFIRMED".green(), task_detail, fee)
+            };
+
+            (event, delay, log, is_failure)
+        }; // <--- RNG DIES HERE. Safe to await now.
+
+        // STEP 2: BROADCAST & LOG
         let _ = tx.send(event);
+        println!("{}", log_msg);
 
-        // 2. Print to Terminal (Backend Log)
-        if is_failure {
-             println!("{} [Agent-{:03}] {}", "✖".red(), id, "SDKey Verification FAILED".red());
-        } else {
-             println!("{} [Agent-{:03}] {} | ${}", "✔".green(), id, task, reward);
-        }
-
-        // Wait a tiny bit before next transaction (High TPS)
-        sleep(Duration::from_millis(50)).await; 
+        // STEP 3: SLEEP (Safe now because delay_ms is just a number)
+        sleep(Duration::from_millis(delay_ms)).await; 
     }
 }
