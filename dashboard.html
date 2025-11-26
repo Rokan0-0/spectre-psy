@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPECTRE // PARTH NETWORK MONITOR</title>
+    <style>
+        body {
+            background-color: #050505;
+            color: #00ff41; /* Hacker Green */
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        #container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: 95vh;
+        }
+
+        /* SIDEBAR STATS */
+        #sidebar {
+            border: 1px solid #333;
+            padding: 20px;
+            background: #0a0a0a;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 { font-size: 24px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; }
+        .subtitle { color: #555; font-size: 12px; margin-bottom: 30px; }
+
+        .stat-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #111;
+            border-left: 3px solid #00ff41;
+        }
+        .stat-label { font-size: 12px; color: #888; }
+        .stat-value { font-size: 28px; font-weight: bold; }
+
+        /* MAIN LOG FEED */
+        #feed-container {
+            border: 1px solid #333;
+            background: #000;
+            padding: 10px;
+            overflow-y: hidden;
+            position: relative;
+        }
+
+        #feed {
+            height: 100%;
+            display: flex;
+            flex-direction: column-reverse; /* Newest at bottom */
+            overflow: hidden;
+        }
+
+        .log-entry {
+            padding: 5px 10px;
+            border-bottom: 1px solid #111;
+            font-size: 14px;
+            display: grid;
+            grid-template-columns: 80px 100px 1fr 80px;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .log-success { color: #00ff41; }
+        .log-failed { color: #ff0055; }
+        
+        .agent-id { color: #666; }
+        .latency { color: #444; text-align: right; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* SCANNER LINE ANIMATION */
+        .scanner {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 2px;
+            background: rgba(0, 255, 65, 0.5);
+            box-shadow: 0 0 10px #00ff41;
+            animation: scan 3s infinite linear;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <div id="sidebar">
+            <h1>SPECTRE</h1>
+            <div class="subtitle">SECURE AGENT SWARM // PSY PROTOCOL</div>
+
+            <div class="stat-box">
+                <div class="stat-label">NETWORK STATUS</div>
+                <div class="stat-value" style="color: #00ff41">ONLINE</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-label">TRANSACTIONS (SESSION)</div>
+                <div class="stat-value" id="tx-count">0</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-label">VOLUME TRADED</div>
+                <div class="stat-value" id="volume-count">$0</div>
+            </div>
+            
+            <div style="margin-top: auto; font-size: 10px; color: #444;">
+                CONNECTION: ws://127.0.0.1:3030<br>
+                ENCRYPTION: ZK-SNARK (Mock)<br>
+                NODE ID: ALPHA-9
+            </div>
+        </div>
+
+        <div id="feed-container">
+            <div class="scanner"></div>
+            <div id="feed"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = new WebSocket('ws://127.0.0.1:3030/spectre');
+        const feed = document.getElementById('feed');
+        const txCountEl = document.getElementById('tx-count');
+        const volCountEl = document.getElementById('volume-count');
+
+        let txCount = 0;
+        let totalVolume = 0;
+
+        socket.onopen = () => {
+            console.log("CONNECTED TO SPECTRE CORE");
+            addLog({ agent_id: 0, status: "SYSTEM", task: "CONNECTION ESTABLISHED", reward: 0, latency: 0 }, true);
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            // Update Stats
+            txCount++;
+            txCountEl.innerText = txCount;
+            
+            if(data.status === "SUCCESS") {
+                totalVolume += data.reward;
+                volCountEl.innerText = "$" + totalVolume.toLocaleString();
+            }
+
+            addLog(data);
+        };
+
+        function addLog(data, isSystem = false) {
+            const div = document.createElement('div');
+            div.className = `log-entry ${data.status === 'FAILED' ? 'log-failed' : 'log-success'}`;
+            
+            if (isSystem) {
+                div.innerHTML = `<span style="grid-column: span 4; text-align: center;">--- ${data.task} ---</span>`;
+            } else {
+                div.innerHTML = `
+                    <span class="agent-id">AGT-${data.agent_id.toString().padStart(3, '0')}</span>
+                    <span>${data.status}</span>
+                    <span>${data.task}</span>
+                    <span class="latency">${data.latency}ms</span>
+                `;
+            }
+
+            feed.prepend(div); // Add to top
+
+            // Keep DOM clean (remove old logs)
+            if (feed.children.length > 50) {
+                feed.lastElementChild.remove();
+            }
+        }
+    </script>
+</body>
+</html>
