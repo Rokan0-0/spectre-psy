@@ -3,6 +3,14 @@ name = "spectre_protocol"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "swarm"
+path = "src/bin/swarm.rs"
+
+[[bin]]
+name = "demo"
+path = "src/bin/demo.rs"
+
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
@@ -11,3 +19,4 @@ warp = "0.3"           # The Web Server
 serde = { version = "1.0", features = ["derive"] } # For JSON
 serde_json = "1.0"
 futures = "0.3"        # For WebSocket handling
+reqwest = { version = "0.11", features = ["json"] } # For HTTP requests to Psy testnet

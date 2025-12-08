@@ -67,7 +67,7 @@ async fn run_swarm_engine(tx: broadcast::Sender<AgentEvent>) {
     loop {
         // STEP 1: GENERATE DATA (Sync Block)
         // We do all math here so 'rng' is dropped before we ever await.
-        let (event, delay_ms, log_msg, is_error) = {
+        let (event, delay_ms, log_msg, _is_error) = {
             let mut rng = rand::thread_rng();
 
             // Fake Hash
