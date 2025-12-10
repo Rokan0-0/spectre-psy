@@ -100,8 +100,8 @@ pub fn verify_sdkey_proof(&self, proof: &SDKeyProof, task_complexity: u32) -> Re
 Clone the repo and start the Rust Swarm Server.
 
 ```bash
-git clone https://github.com/yourusername/spectre-psy
-cd spectre-psy
+git clone https://github.com/yourusername/spectre_protocol
+cd spectre_protocol
 cargo run --bin swarm
 ```
 
